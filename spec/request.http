@@ -1,0 +1,2 @@
+### Extracting query
+GET http://localhost:3000/q?id=100
