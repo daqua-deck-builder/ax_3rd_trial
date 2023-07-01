@@ -1,33 +1,29 @@
-use std::fmt;
-use std::fmt::{Debug, Display};
+use std::str::FromStr;
 use tokio;
-use tokio::task::JoinHandle;
+use std::net::{SocketAddr};
+use axum::{
+    response::IntoResponse,
+    routing::get,
+    Router,
+    Server,
+    http::StatusCode,
+};
 
 #[tokio::main]
 async fn main() {
-    println!("start!");
-    println!("result is {}", add_async_after_1sec(1, 1).await);
+    let addr = SocketAddr::from_str("127.0.0.1:3000").unwrap();
 
-    let returned: JoinHandle<SomeValue> = tokio::spawn(async_struct());
-    println!("{:?}", returned);
-    println!("{}", returned.await.unwrap());
+    let app = Router::new()
+        .route("/", get(home_handler));
+
+    println!("{}", &addr);
+
+    Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
 
-async fn add_async_after_1sec<T>(a: T, b: T) -> T
-    where T: std::ops::Add<Output=T> {
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    a + b
-}
-
-#[derive(Debug)]
-struct SomeValue(i32);
-
-impl Display for SomeValue {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SomeValue's value is ({})", self.0)
-    }
-}
-
-async fn async_struct() -> SomeValue {
-    SomeValue(100)
+async fn home_handler() -> impl IntoResponse {
+    (StatusCode::OK, "Index page")
 }
