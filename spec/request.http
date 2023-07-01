@@ -28,3 +28,9 @@ Cookie: sid=1200
 ### Extracting No Cookie
 GET http://localhost:3000/c
 content-type: application/json
+
+
+### Extracting Cookie and Query
+GET http://localhost:3000/cq?id=500
+content-type: application/json
+Cookie: sid=499
