@@ -3,11 +3,17 @@ use tokio;
 use std::net::{SocketAddr};
 use axum::{
     response::IntoResponse,
-    routing::get,
+    routing::{
+        get,
+        post,
+    },
     Router,
     Server,
     http::StatusCode,
-    extract::{Query},
+    extract::{
+        Query,
+        Json,
+    },
 };
 use serde::{
     Deserialize
@@ -19,7 +25,9 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(home_handler))
-        .route("/q", get(query_parse_handler))
+        .route("/q", get(query_parse_handler)
+            .post(body_parse_handler),
+        )
         ;
 
     println!("{}", &addr);
@@ -42,4 +50,9 @@ struct QuerySample1 {
 async fn query_parse_handler(query: Query<QuerySample1>) -> impl IntoResponse {
     println!("{:?}", query);
     (StatusCode::OK, format!("id is {}", query.id))
+}
+
+async fn body_parse_handler(body: Json<QuerySample1>) -> impl IntoResponse {
+    println!("{:?}", body);
+    (StatusCode::OK, format!("id is {}", body.id))
 }

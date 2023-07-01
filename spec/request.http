@@ -1,2 +1,11 @@
 ### Extracting query
 GET http://localhost:3000/q?id=100
+
+
+### Extracting requestBody
+POST http://localhost:3000/q
+content-type: application/json
+
+{
+  "id": 200
+}
