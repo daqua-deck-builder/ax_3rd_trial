@@ -1,4 +1,4 @@
-### Extracting query
+### Extracting Query
 GET http://localhost:3000/q?id=100
 
 
@@ -9,3 +9,22 @@ content-type: application/json
 {
   "id": 200
 }
+
+
+#### Extracting requestBody
+#POST http://localhost:3000/both?id=1
+#content-type: application/json
+#
+#{
+#  "id": 200
+#}
+
+### Extracting Cookie
+GET http://localhost:3000/c
+content-type: application/json
+Cookie: sid=1200
+
+
+### Extracting No Cookie
+GET http://localhost:3000/c
+content-type: application/json
