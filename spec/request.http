@@ -11,13 +11,13 @@ content-type: application/json
 }
 
 
-#### Extracting requestBody
-#POST http://localhost:3000/both?id=1
-#content-type: application/json
-#
-#{
-#  "id": 200
-#}
+### Extracting requestBody
+POST http://localhost:3000/both?id=1
+content-type: application/json
+
+{
+  "id": 200
+}
 
 ### Extracting Cookie
 GET http://localhost:3000/c
