@@ -19,6 +19,10 @@ content-type: application/json
   "id": 200
 }
 
+### Receive Cookie
+GET http://localhost:3000/set_cookie
+
+
 ### Extracting Cookie
 GET http://localhost:3000/c
 content-type: application/json

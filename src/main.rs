@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use rand::Rng;
 use tokio;
 use std::net::{SocketAddr};
 use axum::{
@@ -9,16 +10,21 @@ use axum::{
     },
     Router,
     Server,
-    http::StatusCode,
+    http::{
+        header,
+        StatusCode,
+    },
     extract::{
         Query,
         Json,
     },
 };
+use axum::http::Response;
 use serde::{
     Deserialize
 };
 use axum_extra::extract::cookie::CookieJar;
+use rand::rngs::ThreadRng;
 
 #[tokio::main]
 async fn main() {
@@ -30,6 +36,7 @@ async fn main() {
         .route("/c", get(cookie_parse_handler))
         .route("/cq", get(cookie_and_query))
         .route("/both", post(q_and_body))
+        .route("/set_cookie", get(set_cookie_handler))
         ;
 
     println!("{}", &addr);
@@ -84,4 +91,18 @@ async fn cookie_and_query(cookie: CookieJar, query: Query<QuerySample1>) -> impl
     } else {
         (StatusCode::UNAUTHORIZED, "not authorized".into())
     }
+}
+
+async fn set_cookie_handler() -> impl IntoResponse {
+    let mut rng: ThreadRng = rand::thread_rng();
+    let sid: i32 = rng.gen_range(0..100000);
+
+    let response: Response<String> = Response::builder()
+        // .header("X-Custom-Foo", "Bar")
+        // .header(header::SET_COOKIE, format!("sid={}; SameSite=Strict", sid))
+        .header(header::SET_COOKIE, format!("sid={};", sid))
+        .body(format!("your sid is {}", sid))
+        .unwrap();
+
+    (StatusCode::OK, response.into_parts())
 }
