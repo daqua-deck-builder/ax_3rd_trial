@@ -32,6 +32,7 @@ use serde::{
 use axum_extra::extract::cookie::CookieJar;
 use futures::{SinkExt, StreamExt};
 use rand::rngs::ThreadRng;
+use uuid::Uuid;
 
 #[tokio::main]
 async fn main() {
@@ -60,6 +61,12 @@ async fn home_handler() -> impl IntoResponse {
     (StatusCode::OK, "Index page")
 }
 
+#[derive(Serialize)]
+struct WSConnectionResult {
+    id: String,
+    message_type: String,
+}
+
 async fn websocket_handler(
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
@@ -70,8 +77,14 @@ async fn websocket_handler(
 async fn websocket(stream: WebSocket) {
     let (mut sender, mut receiver) = stream.split();
 
-    let mut user_id: String = String::new();
-    let mut message_type: String = String::new();
+    println!("Client connected");
+
+    // 接続開始時にUUIDを生成しクライアントに投げる
+    let connection_result = WSConnectionResult {
+        id: Uuid::new_v4().to_string(),
+        message_type: "connected".into(),
+    };
+    sender.send(Message::Text(serde_json::to_string(&connection_result).unwrap())).await.unwrap();  // ブロッキング注意
 
     while let Some(result) = receiver.next().await {
         match result {
@@ -79,7 +92,7 @@ async fn websocket(stream: WebSocket) {
                 if let Message::Text(message_text) = message {
                     println!("{}", message_text);
                 }
-            },
+            }
             Err(e) => {
                 println!("Error in websocket: {:?}", e);
                 break;

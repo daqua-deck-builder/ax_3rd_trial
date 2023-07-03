@@ -10,14 +10,14 @@ const message = ref<string>('');
 
 const handler = (e: any): void => {
     const newMessage = JSON.parse(e.data);
-    if (true) {
-        // チャット画面に遷移してきた際にのみ実行
-        if (newMessage["message_type"] === "SetUserId") {
-            messages.value = [newMessage["message_type"], ...messages.value];
-            return
-        } else if (
-            newMessage["message_type"] === "SendMessage") {
-        }
+
+    switch(newMessage.message_type) {
+        case 'connected':
+            console.log(newMessage.id);
+            break;
+        default:
+            console.log(newMessage)
+            break;
     }
 }
 sock.addEventListener("message", handler);
