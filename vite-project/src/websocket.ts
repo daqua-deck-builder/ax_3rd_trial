@@ -1,0 +1,1 @@
+export const sock = new WebSocket("ws://localhost:3001/websocket");

@@ -17,13 +17,20 @@ use axum::{
     extract::{
         Query,
         Json,
+        ws::{
+            Message,
+            WebSocket,
+            WebSocketUpgrade,
+        },
     },
 };
 use axum::http::Response;
 use serde::{
-    Deserialize
+    Deserialize,
+    Serialize,
 };
 use axum_extra::extract::cookie::CookieJar;
+use futures::{SinkExt, StreamExt};
 use rand::rngs::ThreadRng;
 
 #[tokio::main]
@@ -37,6 +44,8 @@ async fn main() {
         .route("/cq", get(cookie_and_query))
         .route("/both", post(q_and_body))
         .route("/set_cookie", get(set_cookie_handler))
+        .route("/api/item1.json", get(json_handler1))
+        .route("/websocket", get(websocket_handler))
         ;
 
     println!("{}", &addr);
@@ -51,7 +60,38 @@ async fn home_handler() -> impl IntoResponse {
     (StatusCode::OK, "Index page")
 }
 
-#[derive(Debug, Deserialize, Clone, Copy, Default)]
+async fn websocket_handler(
+    ws: WebSocketUpgrade,
+) -> impl IntoResponse {
+    println!("ws access");
+    ws.on_upgrade(|socket| websocket(socket))
+}
+
+async fn websocket(stream: WebSocket) {
+    let (mut sender, mut receiver) = stream.split();
+
+    let mut user_id: String = String::new();
+    let mut message_type: String = String::new();
+
+    while let Some(result) = receiver.next().await {
+        match result {
+            Ok(message) => {
+                if let Message::Text(message_text) = message {
+                    println!("{}", message_text);
+                }
+            },
+            Err(e) => {
+                println!("Error in websocket: {:?}", e);
+                break;
+            }
+        }
+    }
+
+    println!("Client disconnected")
+}
+
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default)]
 struct QuerySample1 {
     id: i32,
 }
@@ -105,4 +145,11 @@ async fn set_cookie_handler() -> impl IntoResponse {
         .unwrap();
 
     (StatusCode::OK, response.into_parts())
+}
+
+async fn json_handler1() -> impl IntoResponse {
+    let item = QuerySample1 {
+        id: 500
+    };
+    (StatusCode::OK, Json(item))
 }
