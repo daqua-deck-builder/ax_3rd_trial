@@ -38,3 +38,12 @@ content-type: application/json
 GET http://localhost:3000/cq?id=500
 content-type: application/json
 Cookie: sid=499
+
+
+### Websocket upgrade?
+GET http://localhost:3000/websocket
+Sec-WebSocket-Version: 13
+Sec-WebSocket-Extensions: permessage-deflate
+Sec-WebSocket-Key: 0n5rjz+0mWyreQf5sdLxbQ==
+Connection: keep-alive, Upgrade
+Upgrade: websocket
