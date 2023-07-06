@@ -30,22 +30,19 @@ pub struct CreateUser {
 
 
 pub struct UserManager {
-    // pool: Pool<Arc<>>
+    pool: Pool<Postgres>,
 }
 
 impl UserManager {
-    pub fn new() -> UserManager {
-        UserManager {}
+    pub fn new(pool: Pool<Postgres>) -> UserManager {
+        UserManager { pool }
     }
 
     pub async fn all(&self) -> Result<Vec<User>, sqlx::Error> {
         println!("in create method");
-        let pool = PgPoolOptions::new()
-            .max_connections(5)
-            .connect("postgres://postgres:postgres@192.168.33.10/testdb1").await?;
 
         let value: Vec<User> = sqlx::query_as("select * from users;")
-            .fetch_all(&pool)
+            .fetch_all(&self.pool)
             .await?;
 
         Ok(value)

@@ -34,12 +34,22 @@ use serde::{
 use axum_extra::extract::cookie::CookieJar;
 use futures::{SinkExt, StreamExt};
 use rand::rngs::ThreadRng;
+use sqlx::Postgres;
 use uuid::Uuid;
 use auth::UserManager;
 use crate::auth::CreateUser;
+use sqlx::postgres::PgPoolOptions;
 
 #[tokio::main]
 async fn main() {
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect("postgres://postgres:postgres@192.168.33.10/testdb1").await;
+    let pool: sqlx::Pool<Postgres> = pool.unwrap();
+    let mut user_manager: UserManager = UserManager::new(pool);
+    let users: Result<Vec<auth::User>, sqlx::Error> = user_manager.all().await;
+    users.unwrap().iter().for_each(|u: &auth::User| { println!("{} {} {}", u.id, u.username, u.password) });
+
     let addr = SocketAddr::from_str("127.0.0.1:3000").unwrap();
 
     let app = Router::new()
@@ -54,11 +64,6 @@ async fn main() {
         ;
 
     println!("{}", &addr);
-
-    let mut user_manager = UserManager::new();
-
-    let users: Result<Vec<auth::User>, sqlx::Error> = user_manager.all().await;
-    users.unwrap().iter().for_each(|u: &auth::User| {println!("{} {} {}", u.id, u.username, u.password)});
 
     Server::bind(&addr)
         .serve(app.into_make_service())
