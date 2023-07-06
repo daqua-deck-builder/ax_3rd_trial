@@ -1,3 +1,5 @@
+mod auth;
+
 use std::str::FromStr;
 use rand::Rng;
 use tokio;
@@ -33,6 +35,8 @@ use axum_extra::extract::cookie::CookieJar;
 use futures::{SinkExt, StreamExt};
 use rand::rngs::ThreadRng;
 use uuid::Uuid;
+use auth::UserManager;
+use crate::auth::CreateUser;
 
 #[tokio::main]
 async fn main() {
@@ -50,6 +54,11 @@ async fn main() {
         ;
 
     println!("{}", &addr);
+
+    let mut user_manager = UserManager::new();
+
+    let users: Result<Vec<auth::User>, sqlx::Error> = user_manager.all().await;
+    users.unwrap().iter().for_each(|u: &auth::User| {println!("{} {} {}", u.id, u.username, u.password)});
 
     Server::bind(&addr)
         .serve(app.into_make_service())
