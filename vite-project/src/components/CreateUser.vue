@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import {ref} from "vue";
-import axios, {type AxiosResponse} from "axios";
+import axios, {AxiosError, type AxiosResponse} from "axios";
 
 const username = ref('');
 const password = ref('');
+
+const ERRORS: Record<string, string> = {
+    'unknown error': "不明なエラーです。",
+    'invalid letter': "ユーザー名に不正な文字が含まれています。"
+}
 
 const submit = (): void => {
     const info = {
@@ -11,10 +16,18 @@ const submit = (): void => {
         password: password.value
     };
 
-    console.log(info)
-
-    axios.post('/api/user/create', info).then((res: AxiosResponse<{ success: boolean }>): void => {
-        console.log(res.data.success);
+    axios.post('/api/user/create', info).then((res: AxiosResponse<{ success: boolean, reason?: string[] }>): void => {
+        if (res.data.success) {
+            alert('作成しました');
+        } else {
+            alert((res.data.reason || ['unknown error']).map(r => ERRORS[r] || '不明なエラーです'));
+        }
+    }).catch((error: AxiosError<{ success: boolean, reason?: string[] }>) => {
+        if (error.response && error.response.status === 500) {
+            alert((error.response.data.reason || ['unknown error']).map(r => ERRORS[r] || '不明なエラーです'));
+        } else {
+            console.error(error);
+        }
     });
 }
 </script>

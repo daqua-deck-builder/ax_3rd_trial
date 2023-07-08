@@ -37,8 +37,21 @@ pub enum UserSingleOrError {
 }
 
 #[derive(Serialize)]
-struct SimpleResult {
+struct Simple {
     success: bool,
+}
+
+#[derive(Serialize)]
+struct ResultWithReason {
+    success: bool,
+    reason: Option<Vec<String>>,
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum SimpleResult {
+    Simple(Simple),
+    ResultReason(ResultWithReason),
 }
 
 async fn user_list_handler(e: Extension<Arc<UserManager>>) -> Result<impl IntoResponse, Infallible> {
@@ -58,16 +71,20 @@ async fn get_user_handler(e: Extension<Arc<UserManager>>, Path(user_id): Path<i3
 }
 
 async fn create_user_handler(e: Extension<Arc<UserManager>>, create_user: Json<CreateUser>) -> impl IntoResponse {
+    if let Err(error) = create_user.valid_username() {
+        return (StatusCode::INTERNAL_SERVER_ERROR, axum::response::Json(SimpleResult::ResultReason(ResultWithReason { success: false, reason: Some(error) })));
+    }
+
     let user_manager: Arc<UserManager> = e.0.clone();
     let hashed_password = hash(&create_user.password, DEFAULT_COST).unwrap();
 
     println!("{} {}", create_user.username, hashed_password);
     match user_manager.create(&CreateUser { username: create_user.username.clone(), password: hashed_password.clone() }).await {
         Ok(user) => {
-            (StatusCode::CREATED, axum::response::Json(SimpleResult { success: true }))
-        },
+            (StatusCode::CREATED, axum::response::Json(SimpleResult::Simple(Simple { success: true })))
+        }
         Err(_) => {
-            (StatusCode::INTERNAL_SERVER_ERROR, axum::response::Json(SimpleResult { success: false }))
+            (StatusCode::INTERNAL_SERVER_ERROR, axum::response::Json(SimpleResult::Simple(Simple { success: false })))
         }
     }
 }

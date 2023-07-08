@@ -30,6 +30,20 @@ pub struct CreateUser {
     pub password: String,
 }
 
+impl CreateUser {
+    pub fn valid_username(&self) -> Result<(), Vec<String>> {
+        let mut errors: Vec<String> = Vec::new();
+        if !self.username.chars().all(|c| c.is_ascii_alphanumeric()) {
+            errors.push("invalid letter".into())
+        }
+
+        match errors.len() {
+            0 => Ok(()),
+            _ => Err(errors)
+        }
+    }
+}
+
 pub struct UserManager {
     pool: Pool<Postgres>,
 }
