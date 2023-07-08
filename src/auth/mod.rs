@@ -24,7 +24,7 @@ impl User {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct CreateUser {
     pub username: String,
     pub password: String,
@@ -58,9 +58,17 @@ impl UserManager {
         Ok(user)
     }
 
-    pub async fn create(&self, createUser: &CreateUser) {
-        todo!()
+    pub async fn create(&self, create_user: &CreateUser) -> Result<User, sqlx::Error> {
+        println!("[create]");
+
+        let user: User = sqlx::query_as("insert into users (username, password) values ($1, $2) returning id, username;")
+            .bind(&create_user.username)
+            .bind(&create_user.password)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(user)
     }
+
     pub fn find_by_id(id: i32) -> Result<User, String> {
         todo!()
     }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
+import HelloWorld from './components/HelloWorld.vue';
+import CreateUser from "./components/CreateUser.vue";
 
 import {sock} from "./websocket.ts";
 import {ref} from "vue";
@@ -49,6 +50,7 @@ const submit = () => {
 </script>
 
 <template lang="pug">
+CreateUser
 form(@submit.prevent="submit")
     input(type="text" v-model="message")
 ul

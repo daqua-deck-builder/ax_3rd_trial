@@ -3,7 +3,8 @@ use axum::{
     response::{IntoResponse},
     http::StatusCode,
     Router,
-    extract::{Path},
+    extract::{Path, Json},
+    routing::{get, post},
 };
 use std::sync::Arc;
 use super::{
@@ -13,7 +14,8 @@ use super::{
 use crate::shared::ErrorMessage;
 use serde::Serialize;
 use std::convert::Infallible;
-use axum::routing::get;
+use crate::auth::CreateUser;
+use bcrypt::{hash, verify, DEFAULT_COST};
 
 #[derive(Serialize)]
 pub struct UserList {
@@ -34,6 +36,11 @@ pub enum UserSingleOrError {
     Error(ErrorMessage),
 }
 
+#[derive(Serialize)]
+struct SimpleResult {
+    success: bool,
+}
+
 async fn user_list_handler(e: Extension<Arc<UserManager>>) -> Result<impl IntoResponse, Infallible> {
     let user_manager: Arc<UserManager> = e.0.clone();
     match user_manager.all().await {
@@ -42,7 +49,7 @@ async fn user_list_handler(e: Extension<Arc<UserManager>>) -> Result<impl IntoRe
     }
 }
 
-async fn get_user(e: Extension<Arc<UserManager>>, Path(user_id): Path<i32>) -> Result<impl IntoResponse, Infallible> {
+async fn get_user_handler(e: Extension<Arc<UserManager>>, Path(user_id): Path<i32>) -> Result<impl IntoResponse, Infallible> {
     let user_manager: Arc<UserManager> = e.0.clone();
     match user_manager.get(user_id).await {
         Ok(user) => Ok((StatusCode::OK, axum::response::Json(UserSingleOrError::User(user)))),
@@ -50,9 +57,25 @@ async fn get_user(e: Extension<Arc<UserManager>>, Path(user_id): Path<i32>) -> R
     }
 }
 
+async fn create_user_handler(e: Extension<Arc<UserManager>>, create_user: Json<CreateUser>) -> impl IntoResponse {
+    let user_manager: Arc<UserManager> = e.0.clone();
+    let hashed_password = hash(&create_user.password, DEFAULT_COST).unwrap();
+
+    println!("{} {}", create_user.username, hashed_password);
+    match user_manager.create(&CreateUser { username: create_user.username.clone(), password: hashed_password.clone() }).await {
+        Ok(user) => {
+            (StatusCode::CREATED, axum::response::Json(SimpleResult { success: true }))
+        },
+        Err(_) => {
+            (StatusCode::INTERNAL_SERVER_ERROR, axum::response::Json(SimpleResult { success: false }))
+        }
+    }
+}
+
 pub fn create_router(um: Arc<UserManager>) -> Router {
     Router::new()
         .route("/", get(user_list_handler))
-        .route("/:id", get(get_user))
+        .route("/:id", get(get_user_handler))
+        .route("/create", post(create_user_handler))
         .layer(Extension(um.clone()))
 }
