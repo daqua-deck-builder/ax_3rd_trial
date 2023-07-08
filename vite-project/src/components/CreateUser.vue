@@ -5,7 +5,7 @@ import axios, {type AxiosResponse} from "axios";
 const username = ref('');
 const password = ref('');
 
-const submit = () => {
+const submit = (): void => {
     const info = {
         username: username.value,
         password: password.value
@@ -21,6 +21,7 @@ const submit = () => {
 
 <template lang="pug">
 .create_user_form
+    h1 CREATE USER
     form(@submit.prevent="submit")
         table
             colgroup
@@ -41,7 +42,7 @@ const submit = () => {
             tr
                 td
                 td
-                    input(type="submit" value="send")
+                    input(type="submit" value="Create")
 
 </template>
 

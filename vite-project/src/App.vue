@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue';
 import CreateUser from "./components/CreateUser.vue";
-
+import axios, {type AxiosResponse} from "axios"
 import {sock} from "./websocket.ts";
-import {ref} from "vue";
+import {onBeforeMount, ref} from "vue";
 
 const messages = ref<string[]>([]);
 
@@ -12,7 +11,7 @@ const message = ref<string>('');
 const handler = (e: any): void => {
     const newMessage = JSON.parse(e.data);
 
-    switch(newMessage.message_type) {
+    switch (newMessage.message_type) {
         case 'connected':
             console.log(newMessage.id);
             break;
@@ -25,6 +24,19 @@ sock.addEventListener("message", handler);
 
 sock.addEventListener('open', (): void => {
     emit("SetUserId", {user_id: "100"});
+});
+
+type User = {
+    username: string,
+    id: number
+};
+
+const users = ref<User[]>([]);
+
+onBeforeMount(() => {
+    axios.get('/api/user').then((res: AxiosResponse<{ users: User[] }>): void => {
+        users.value = res.data.users;
+    });
 });
 
 const emit = (message_type: string, payload: Object): Promise<void> => {
@@ -51,11 +63,14 @@ const submit = () => {
 
 <template lang="pug">
 CreateUser
-form(@submit.prevent="submit")
-    input(type="text" v-model="message")
+h1 USERS
+ul.users
+    li(v-for="u in users" v-text="u.username")
+h1 TODOS
 ul
     li(v-for="m in messages") {{ m }}
-HelloWorld(msg="Axum + Vite + Vue")
+form(@submit.prevent="submit")
+    input(type="text" v-model="message")
 </template>
 
 <style scoped>
