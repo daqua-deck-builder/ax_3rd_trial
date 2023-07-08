@@ -47,3 +47,7 @@ Sec-WebSocket-Extensions: permessage-deflate
 Sec-WebSocket-Key: 0n5rjz+0mWyreQf5sdLxbQ==
 Connection: keep-alive, Upgrade
 Upgrade: websocket
+
+
+### get user list
+GET http://localhost:3000/api/user

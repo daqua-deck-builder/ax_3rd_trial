@@ -1,31 +1,25 @@
 mod auth;
 
+use std::convert::Infallible;
 use std::str::FromStr;
 use rand::Rng;
 use tokio;
 use std::net::{SocketAddr};
-use axum::{
-    response::IntoResponse,
-    routing::{
-        get,
-        post,
+use axum::{response::IntoResponse, routing::{
+    get,
+    post,
+}, Router, Server, http::{
+    header,
+    StatusCode,
+}, extract::{
+    Query,
+    Json,
+    ws::{
+        Message,
+        WebSocket,
+        WebSocketUpgrade,
     },
-    Router,
-    Server,
-    http::{
-        header,
-        StatusCode,
-    },
-    extract::{
-        Query,
-        Json,
-        ws::{
-            Message,
-            WebSocket,
-            WebSocketUpgrade,
-        },
-    },
-};
+}, Extension};
 use axum::http::Response;
 use serde::{
     Deserialize,
@@ -37,8 +31,10 @@ use rand::rngs::ThreadRng;
 use sqlx::Postgres;
 use uuid::Uuid;
 use auth::UserManager;
-use crate::auth::CreateUser;
+use crate::auth::{CreateUser, User};
 use sqlx::postgres::PgPoolOptions;
+use std::sync::Arc;
+// use hyper::Response;
 
 #[tokio::main]
 async fn main() {
@@ -46,9 +42,7 @@ async fn main() {
         .max_connections(5)
         .connect("postgres://postgres:postgres@192.168.33.10/testdb1").await;
     let pool: sqlx::Pool<Postgres> = pool.unwrap();
-    let mut user_manager: UserManager = UserManager::new(pool);
-    let users: Result<Vec<auth::User>, sqlx::Error> = user_manager.all().await;
-    users.unwrap().iter().for_each(|u: &auth::User| { println!("{} {} {}", u.id, u.username, u.password) });
+    let mut user_manager = Arc::new(UserManager::new(pool));
 
     let addr = SocketAddr::from_str("127.0.0.1:3000").unwrap();
 
@@ -60,7 +54,9 @@ async fn main() {
         .route("/both", post(q_and_body))
         .route("/set_cookie", get(set_cookie_handler))
         .route("/api/item1.json", get(json_handler1))
+        .route("/api/user", get(user_list_handler))
         .route("/websocket", get(websocket_handler))
+        .layer(Extension(user_manager))
         ;
 
     println!("{}", &addr);
@@ -69,6 +65,33 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+
+#[derive(Serialize)]
+struct ErrorMessage {
+    message: String,
+}
+
+#[derive(Serialize)]
+struct UserList {
+    users: Vec<User>,
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum UserOrError {
+    Users(UserList),
+    Error(ErrorMessage),
+}
+
+async fn user_list_handler(e: Extension<Arc<UserManager>>) -> Result<impl IntoResponse, Infallible> {
+    let user_manager = e.0.clone();
+    match user_manager.all().await {
+        Ok(users) => {
+            Ok((StatusCode::OK, Json(UserOrError::Users(UserList { users }))))
+        }
+        Err(_) => Ok((StatusCode::INTERNAL_SERVER_ERROR, Json(UserOrError::Error(ErrorMessage { message: "Internal server error".to_string() })))),
+    }
 }
 
 async fn home_handler() -> impl IntoResponse {
