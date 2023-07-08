@@ -1,6 +1,6 @@
 mod auth;
+mod shared;
 
-use std::convert::Infallible;
 use std::str::FromStr;
 use rand::Rng;
 use tokio;
@@ -28,25 +28,25 @@ use serde::{
 use axum_extra::extract::cookie::CookieJar;
 use futures::{SinkExt, StreamExt};
 use rand::rngs::ThreadRng;
-use sqlx::Postgres;
+use sqlx::{Error, Postgres};
 use uuid::Uuid;
 use auth::UserManager;
 use crate::auth::{CreateUser, User};
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
-// use hyper::Response;
+use axum::routing::Route;
 
 #[tokio::main]
 async fn main() {
-    let pool = PgPoolOptions::new()
+    let pool: Result<sqlx::Pool<Postgres>, Error> = PgPoolOptions::new()
         .max_connections(5)
         .connect("postgres://postgres:postgres@192.168.33.10/testdb1").await;
     let pool: sqlx::Pool<Postgres> = pool.unwrap();
-    let mut user_manager = Arc::new(UserManager::new(pool));
+    let user_manager: Arc<UserManager> = Arc::new(UserManager::new(pool));
 
-    let addr = SocketAddr::from_str("127.0.0.1:3000").unwrap();
+    let addr: SocketAddr = SocketAddr::from_str("127.0.0.1:3000").unwrap();
 
-    let app = Router::new()
+    let app: Router = Router::new()
         .route("/", get(home_handler))
         .route("/q", get(query_parse_handler).post(body_parse_handler))
         .route("/c", get(cookie_parse_handler))
@@ -54,7 +54,7 @@ async fn main() {
         .route("/both", post(q_and_body))
         .route("/set_cookie", get(set_cookie_handler))
         .route("/api/item1.json", get(json_handler1))
-        .route("/api/user", get(user_list_handler))
+        .route("/api/user", get(auth::handlers::user_list_handler))
         .route("/websocket", get(websocket_handler))
         .layer(Extension(user_manager))
         ;
@@ -65,33 +65,6 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
-}
-
-#[derive(Serialize)]
-struct ErrorMessage {
-    message: String,
-}
-
-#[derive(Serialize)]
-struct UserList {
-    users: Vec<User>,
-}
-
-#[derive(Serialize)]
-#[serde(untagged)]
-enum UserOrError {
-    Users(UserList),
-    Error(ErrorMessage),
-}
-
-async fn user_list_handler(e: Extension<Arc<UserManager>>) -> Result<impl IntoResponse, Infallible> {
-    let user_manager = e.0.clone();
-    match user_manager.all().await {
-        Ok(users) => {
-            Ok((StatusCode::OK, Json(UserOrError::Users(UserList { users }))))
-        }
-        Err(_) => Ok((StatusCode::INTERNAL_SERVER_ERROR, Json(UserOrError::Error(ErrorMessage { message: "Internal server error".to_string() })))),
-    }
 }
 
 async fn home_handler() -> impl IntoResponse {

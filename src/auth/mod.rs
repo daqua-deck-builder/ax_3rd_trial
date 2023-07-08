@@ -1,3 +1,5 @@
+pub mod handlers;
+
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Pool};
@@ -38,7 +40,7 @@ impl UserManager {
     }
 
     pub async fn all(&self) -> Result<Vec<User>, sqlx::Error> {
-        println!("in create method");
+        println!("[all]");
 
         let value: Vec<User> = sqlx::query_as("select * from users;")
             .fetch_all(&self.pool)
