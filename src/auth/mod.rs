@@ -28,7 +28,6 @@ pub struct CreateUser {
     pub password: String,
 }
 
-
 pub struct UserManager {
     pool: Pool<Postgres>,
 }
