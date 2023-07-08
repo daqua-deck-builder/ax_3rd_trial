@@ -46,6 +46,8 @@ async fn main() {
 
     let addr: SocketAddr = SocketAddr::from_str("127.0.0.1:3000").unwrap();
 
+    let auth_router = auth::handlers::create_router(user_manager);
+
     let app: Router = Router::new()
         .route("/", get(home_handler))
         .route("/q", get(query_parse_handler).post(body_parse_handler))
@@ -54,9 +56,8 @@ async fn main() {
         .route("/both", post(q_and_body))
         .route("/set_cookie", get(set_cookie_handler))
         .route("/api/item1.json", get(json_handler1))
-        .route("/api/user", get(auth::handlers::user_list_handler))
+        .nest("/api/user", auth_router)
         .route("/websocket", get(websocket_handler))
-        .layer(Extension(user_manager))
         ;
 
     println!("{}", &addr);

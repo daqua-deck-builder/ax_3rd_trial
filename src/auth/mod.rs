@@ -48,6 +48,16 @@ impl UserManager {
 
         Ok(value)
     }
+    pub async fn get(&self, id: i32) -> Result<User, sqlx::Error> {
+        println!("[get]");
+
+        let user: User = sqlx::query_as("select * from users where id = $1;")
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(user)
+    }
+
     pub async fn create(&self, createUser: &CreateUser) {
         todo!()
     }
