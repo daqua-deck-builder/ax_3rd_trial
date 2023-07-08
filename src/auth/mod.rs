@@ -11,7 +11,7 @@ use sqlx::postgres::PgPoolOptions;
 pub struct User {
     pub id: i32,
     pub username: String,
-    pub password: String,
+    // pub password: String,
 }
 
 impl User {
@@ -19,7 +19,7 @@ impl User {
         User {
             id: 1,
             username,
-            password,
+            // password,
         }
     }
 }
