@@ -14,8 +14,10 @@ use super::{
 use crate::shared::ErrorMessage;
 use serde::Serialize;
 use std::convert::Infallible;
+use axum::response::Response;
 use crate::auth::CreateUser;
 use bcrypt::{hash, verify, DEFAULT_COST};
+use futures::future::err;
 
 #[derive(Serialize)]
 pub struct UserList {
@@ -89,10 +91,54 @@ async fn create_user_handler(e: Extension<Arc<UserManager>>, create_user: Json<C
     }
 }
 
+#[derive(Serialize)]
+enum ResponseBody {
+    User(UserList),
+    Error(ErrorMessage),
+    NoContent,
+}
+
+pub struct MyResponse(StatusCode, Option<Json<ResponseBody>>);
+
+impl IntoResponse for MyResponse {
+    fn into_response(self) -> Response {
+        match self.1 {
+            Some(body) => (self.0, body).into_response(),
+            None => (self.0, String::from("")).into_response(),
+        }
+    }
+}
+
+async fn delete_user_handler(e: Extension<Arc<UserManager>>, Path(user_id): Path<i32>) -> impl IntoResponse {
+    let user_manager = e.0.clone();
+    let response = match user_manager.delete(user_id).await {
+        Ok(true) => {
+            match user_manager.all().await {
+                Ok(users) => Some(Json(ResponseBody::User(UserList { users }))),
+                Err(_) => Some(Json(ResponseBody::Error(ErrorMessage { message: "Unknown error".into() }))),
+            }
+        }
+        Ok(false) => {
+            Some(Json(ResponseBody::NoContent))
+        }
+        _ => None,
+    };
+
+    match response {
+        Some(Json(ResponseBody::User(users))) => MyResponse(StatusCode::OK, Some(Json(ResponseBody::User(users)))),
+        Some(Json(ResponseBody::Error(errors))) => MyResponse(StatusCode::OK, Some(Json(ResponseBody::Error(errors)))),
+        Some(Json(ResponseBody::NoContent)) => MyResponse(StatusCode::NO_CONTENT, None),
+        None => MyResponse(StatusCode::INTERNAL_SERVER_ERROR, None),
+    }
+}
+
 pub fn create_router(um: Arc<UserManager>) -> Router {
     Router::new()
         .route("/", get(user_list_handler))
-        .route("/:id", get(get_user_handler))
+        .route("/:id",
+               get(get_user_handler)
+                   .delete(delete_user_handler),
+        )
         .route("/create", post(create_user_handler))
         .layer(Extension(um.clone()))
 }

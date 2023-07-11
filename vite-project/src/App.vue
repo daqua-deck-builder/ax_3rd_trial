@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import CreateUser from "./components/CreateUser.vue";
-import axios, {type AxiosResponse} from "axios"
+import axios, {AxiosError, type AxiosResponse} from "axios"
 import {sock} from "./websocket.ts";
 import {onBeforeMount, ref} from "vue";
 
@@ -57,6 +57,19 @@ const submit = () => {
     emit('SendMessage', {text: message.value}).then(() => {
         message.value = '';
     });
+};
+
+const delete_user = (id: number): void => {
+    const do_delete: boolean = confirm('削除してもよろしいですか？');
+    if (do_delete) {
+        axios.delete(`/api/user/${id}`).then((res: AxiosResponse<{ users: User[] }>): void => {
+            alert('削除しました');
+            users.value = res.data.users;
+        }).catch((error: AxiosError): void => {
+            alert('削除に失敗しました')
+            console.log(error.status);
+        });
+    }
 }
 
 </script>
@@ -65,7 +78,9 @@ const submit = () => {
 CreateUser
 h1 USERS
 ul.users
-    li(v-for="u in users" v-text="u.username")
+    li(v-for="u in users")
+        span(v-text="u.username")
+        button.delete(@click="delete_user(u.id)") del
 h1 TODOS
 ul
     li(v-for="m in messages") {{ m }}

@@ -83,10 +83,15 @@ impl UserManager {
         Ok(user)
     }
 
-    pub fn find_by_id(id: i32) -> Result<User, String> {
-        todo!()
-    }
-    pub fn delete(id: i32) -> bool {
-        todo!()
+    pub async fn delete(&self, id: i32) -> Result<bool, sqlx::Error> {
+        println!("[delete]");
+
+        let result: u64 = sqlx::query("delete from users where id = $1;")
+            .bind(id)
+            .execute(&self.pool)
+            .await?
+            .rows_affected();
+
+        Ok(result > 0)
     }
 }

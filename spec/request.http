@@ -65,4 +65,5 @@ GET http://localhost:3000/api/user/-1
 GET http://localhost:3000/api/user/a
 
 
-
+### delete none existing user(no content)
+DELETE http://127.0.0.1:3001/api/user/1
