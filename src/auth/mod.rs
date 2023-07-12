@@ -6,12 +6,20 @@ use sqlx::{FromRow, Pool};
 use sqlx::pool::PoolConnection;
 use sqlx::postgres::Postgres;
 use sqlx::postgres::PgPoolOptions;
+use bcrypt::{hash, verify, DEFAULT_COST};
 
 #[derive(Serialize, FromRow, Debug)]
 pub struct User {
     pub id: i32,
     pub username: String,
     // pub password: String,
+}
+
+#[derive(Serialize, FromRow, Debug)]
+pub struct UserForAuthenticate {
+    // pub id: i32,
+    pub username: String,
+    pub password: String,
 }
 
 impl User {
@@ -93,5 +101,23 @@ impl UserManager {
             .rows_affected();
 
         Ok(result > 0)
+    }
+
+    pub async fn authenticate(&self, username: &String, password: &String) -> Result<bool, sqlx::Error> {
+        println!("[authenticate]");
+
+        match sqlx::query_as::<_, UserForAuthenticate>("select username, password from users where username = $1;")
+            .bind(&username)
+            .fetch_optional(&self.pool)
+            .await {
+            Ok(Some(user)) => {
+                match verify(password, &user.password) {
+                    Ok(password_matches) => Ok(password_matches),
+                    Err(_) => Ok(false),
+                }
+            }
+            Ok(None) => Ok(false), // if there's no such user, return false
+            Err(e) => Err(e), // if there's a database error, propagate it
+        }
     }
 }

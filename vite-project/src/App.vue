@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CreateUser from "./components/CreateUser.vue";
+import LoginForm from "./components/LoginForm.vue";
 import axios, {AxiosError, type AxiosResponse} from "axios"
 import {sock} from "./websocket.ts";
 import {onBeforeMount, ref} from "vue";
@@ -76,6 +77,8 @@ const delete_user = (id: number): void => {
 
 <template lang="pug">
 CreateUser
+hr
+LoginForm
 h1 USERS
 ul.users
     li(v-for="u in users")

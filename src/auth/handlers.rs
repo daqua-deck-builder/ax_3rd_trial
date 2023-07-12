@@ -15,9 +15,10 @@ use crate::shared::ErrorMessage;
 use serde::Serialize;
 use std::convert::Infallible;
 use axum::response::Response;
-use crate::auth::CreateUser;
+use crate::auth::{CreateUser, UserForAuthenticate};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use futures::future::err;
+use crate::auth;
 
 #[derive(Serialize)]
 pub struct UserList {
@@ -59,22 +60,22 @@ pub enum SimpleResult {
 async fn user_list_handler(e: Extension<Arc<UserManager>>) -> Result<impl IntoResponse, Infallible> {
     let user_manager: Arc<UserManager> = e.0.clone();
     match user_manager.all().await {
-        Ok(users) => Ok((StatusCode::OK, axum::response::Json(UserOrError::Users(UserList { users })))),
-        Err(_) => Ok((StatusCode::INTERNAL_SERVER_ERROR, axum::response::Json(UserOrError::Error(ErrorMessage { message: "Internal server error".to_string() })))),
+        Ok(users) => Ok((StatusCode::OK, Json(UserOrError::Users(UserList { users })))),
+        Err(_) => Ok((StatusCode::INTERNAL_SERVER_ERROR, Json(UserOrError::Error(ErrorMessage { message: "Internal server error".to_string() })))),
     }
 }
 
 async fn get_user_handler(e: Extension<Arc<UserManager>>, Path(user_id): Path<i32>) -> Result<impl IntoResponse, Infallible> {
     let user_manager: Arc<UserManager> = e.0.clone();
     match user_manager.get(user_id).await {
-        Ok(user) => Ok((StatusCode::OK, axum::response::Json(UserSingleOrError::User(user)))),
-        Err(_) => Ok((StatusCode::NO_CONTENT, axum::response::Json(UserSingleOrError::Error(ErrorMessage { message: "No user found".into() }))))
+        Ok(user) => Ok((StatusCode::OK, Json(UserSingleOrError::User(user)))),
+        Err(_) => Ok((StatusCode::NO_CONTENT, Json(UserSingleOrError::Error(ErrorMessage { message: "No user found".into() }))))
     }
 }
 
 async fn create_user_handler(e: Extension<Arc<UserManager>>, create_user: Json<CreateUser>) -> impl IntoResponse {
     if let Err(error) = create_user.valid_username() {
-        return (StatusCode::INTERNAL_SERVER_ERROR, axum::response::Json(SimpleResult::ResultReason(ResultWithReason { success: false, reason: Some(error) })));
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(SimpleResult::ResultReason(ResultWithReason { success: false, reason: Some(error) })));
     }
 
     let user_manager: Arc<UserManager> = e.0.clone();
@@ -83,10 +84,10 @@ async fn create_user_handler(e: Extension<Arc<UserManager>>, create_user: Json<C
     println!("{} {}", create_user.username, hashed_password);
     match user_manager.create(&CreateUser { username: create_user.username.clone(), password: hashed_password.clone() }).await {
         Ok(user) => {
-            (StatusCode::CREATED, axum::response::Json(SimpleResult::Simple(Simple { success: true })))
+            (StatusCode::CREATED, Json(SimpleResult::Simple(Simple { success: true })))
         }
         Err(_) => {
-            (StatusCode::INTERNAL_SERVER_ERROR, axum::response::Json(SimpleResult::Simple(Simple { success: false })))
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(SimpleResult::Simple(Simple { success: false })))
         }
     }
 }
@@ -138,6 +139,21 @@ async fn delete_user_handler(e: Extension<Arc<UserManager>>, Path(user_id): Path
     }
 }
 
+async fn try_login(e: Extension<Arc<UserManager>>, login_info: Json<CreateUser>) -> impl IntoResponse {
+    let user_manager = e.0.clone();
+    match user_manager.authenticate(&login_info.username, &login_info.password).await {
+        Ok(true) => {
+            (StatusCode::OK, Json(SimpleResult::Simple(Simple { success: true })))
+        }
+        Ok(false) => {
+            (StatusCode::OK, Json(SimpleResult::Simple(Simple { success: false })))
+        }
+        Err(_) => {
+            (StatusCode::OK, Json(SimpleResult::Simple(Simple { success: false })))
+        }
+    }
+}
+
 pub fn create_router(um: Arc<UserManager>) -> Router {
     Router::new()
         .route("/", get(user_list_handler))
@@ -146,5 +162,6 @@ pub fn create_router(um: Arc<UserManager>) -> Router {
                    .delete(delete_user_handler),
         )
         .route("/create", post(create_user_handler))
+        .route("/login", post(try_login))
         .layer(Extension(um.clone()))
 }
