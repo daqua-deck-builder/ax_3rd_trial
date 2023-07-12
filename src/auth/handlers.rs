@@ -110,11 +110,11 @@ impl IntoResponse for MyResponse {
 }
 
 impl MyResponse {
-    fn users(users: UserList) -> MyResponse {
-        MyResponse(StatusCode::OK, Some(Json(ResponseBody::User(users))))
+    fn users(users: Vec<User>) -> MyResponse {
+        MyResponse(StatusCode::OK, Some(Json(ResponseBody::User(UserList { users }))))
     }
-    fn error_from_str(error_message: ErrorMessage) -> MyResponse {
-        MyResponse(StatusCode::OK, Some(Json(ResponseBody::Error(error_message))))
+    fn error_from_str(error_message: String) -> MyResponse {
+        MyResponse(StatusCode::OK, Some(Json(ResponseBody::Error(ErrorMessage { message: error_message }))))
     }
     fn no_content() -> MyResponse {
         MyResponse(StatusCode::NO_CONTENT, None)
@@ -126,24 +126,15 @@ impl MyResponse {
 
 async fn delete_user_handler(e: Extension<Arc<UserManager>>, Path(user_id): Path<i32>) -> impl IntoResponse {
     let user_manager = e.0.clone();
-    let response = match user_manager.delete(user_id).await {
+    match user_manager.delete(user_id).await {
         Ok(true) => {
             match user_manager.all().await {
-                Ok(users) => Some(Json(ResponseBody::User(UserList { users }))),
-                Err(_) => Some(Json(ResponseBody::Error(ErrorMessage { message: "Unknown error".into() }))),
+                Ok(users) => MyResponse::users(users),
+                Err(_) => MyResponse::error_from_str("unknown error".into()),
             }
         }
-        Ok(false) => {
-            Some(Json(ResponseBody::NoContent))
-        }
-        _ => None,
-    };
-
-    match response {
-        Some(Json(ResponseBody::User(users))) => MyResponse::users(users),
-        Some(Json(ResponseBody::Error(errors))) => MyResponse::error_from_str(errors),
-        Some(Json(ResponseBody::NoContent)) => MyResponse::no_content(),
-        None => MyResponse::server_error(),
+        Ok(false) => MyResponse::no_content(),
+        _ => MyResponse::server_error(),
     }
 }
 
