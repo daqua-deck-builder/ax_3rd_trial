@@ -128,11 +128,9 @@ impl MyResponse {
 async fn delete_user_handler(e: Extension<Arc<UserManager>>, Path(user_id): Path<i32>) -> impl IntoResponse {
     let user_manager = e.0.clone();
     match user_manager.delete(user_id).await {
-        Ok(true) => {
-            match user_manager.all().await {
-                Ok(users) => MyResponse::users(users),
-                Err(_) => MyResponse::error_from_str("unknown error".into()),
-            }
+        Ok(true) => match user_manager.all().await {
+            Ok(users) => MyResponse::users(users),
+            Err(_) => MyResponse::error_from_str("unknown error".into()),
         }
         Ok(false) => MyResponse::no_content(),
         _ => MyResponse::server_error(),
@@ -142,15 +140,10 @@ async fn delete_user_handler(e: Extension<Arc<UserManager>>, Path(user_id): Path
 async fn try_login(e: Extension<Arc<UserManager>>, login_info: Json<CreateUser>) -> impl IntoResponse {
     let user_manager = e.0.clone();
     match user_manager.authenticate(&login_info.username, &login_info.password).await {
-        Ok(true) => {
-            (StatusCode::OK, Json(SimpleResult::Simple(Simple { success: true })))
-        }
-        Ok(false) => {
-            (StatusCode::OK, Json(SimpleResult::Simple(Simple { success: false })))
-        }
-        Err(_) => {
-            (StatusCode::OK, Json(SimpleResult::Simple(Simple { success: false })))
-        }
+        Ok(true) => (StatusCode::OK, Json(SimpleResult::Simple(Simple { success: true }))),
+        // Ok(false) => (StatusCode::OK, Json(SimpleResult::Simple(Simple { success: false }))),
+        // Err(_) => (StatusCode::OK, Json(SimpleResult::Simple(Simple { success: false }))),
+        _ => (StatusCode::OK, Json(SimpleResult::Simple(Simple { success: false }))),
     }
 }
 
