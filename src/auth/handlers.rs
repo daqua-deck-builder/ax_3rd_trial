@@ -109,6 +109,21 @@ impl IntoResponse for MyResponse {
     }
 }
 
+impl MyResponse {
+    fn users(users: UserList) -> MyResponse {
+        MyResponse(StatusCode::OK, Some(Json(ResponseBody::User(users))))
+    }
+    fn error_from_str(error_message: ErrorMessage) -> MyResponse {
+        MyResponse(StatusCode::OK, Some(Json(ResponseBody::Error(error_message))))
+    }
+    fn no_content() -> MyResponse {
+        MyResponse(StatusCode::NO_CONTENT, None)
+    }
+    fn server_error() -> MyResponse {
+        MyResponse(StatusCode::INTERNAL_SERVER_ERROR, None)
+    }
+}
+
 async fn delete_user_handler(e: Extension<Arc<UserManager>>, Path(user_id): Path<i32>) -> impl IntoResponse {
     let user_manager = e.0.clone();
     let response = match user_manager.delete(user_id).await {
@@ -125,10 +140,10 @@ async fn delete_user_handler(e: Extension<Arc<UserManager>>, Path(user_id): Path
     };
 
     match response {
-        Some(Json(ResponseBody::User(users))) => MyResponse(StatusCode::OK, Some(Json(ResponseBody::User(users)))),
-        Some(Json(ResponseBody::Error(errors))) => MyResponse(StatusCode::OK, Some(Json(ResponseBody::Error(errors)))),
-        Some(Json(ResponseBody::NoContent)) => MyResponse(StatusCode::NO_CONTENT, None),
-        None => MyResponse(StatusCode::INTERNAL_SERVER_ERROR, None),
+        Some(Json(ResponseBody::User(users))) => MyResponse::users(users),
+        Some(Json(ResponseBody::Error(errors))) => MyResponse::error_from_str(errors),
+        Some(Json(ResponseBody::NoContent)) => MyResponse::no_content(),
+        None => MyResponse::server_error(),
     }
 }
 
