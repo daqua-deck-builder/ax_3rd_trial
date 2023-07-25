@@ -45,19 +45,15 @@ impl SearchQuery {
     }
 
     fn into_hashmap(&self) -> HashMap<String, String> {
-        let mut form = HashMap::new();
-        for (key, value) in vec![
-            ("search", &self.search),
-            ("keyword", &self.keyword),
-            ("product_type", &self.get_product_type()),
-            ("product_no", &self.product_no),
-            ("card_page", &self.card_page),
-            ("card_kind", &self.card_kind),
-            ("rarelity", &self.rarelity),
-        ] {
-            form.insert(key.to_string(), value.clone());
-        }
-        form
+        HashMap::from_iter(vec![
+            ("search".into(), self.search.clone()),
+            ("keyword".into(), self.keyword.clone()),
+            ("product_type".into(), self.get_product_type()),
+            ("product_no".into(), self.product_no.clone()),
+            ("card_page".into(), self.card_page.clone()),
+            ("card_kind".into(), self.card_kind.clone()),
+            ("rarelity".into(), self.rarelity.clone()),
+        ])
     }
 
     fn to_filename(&self) -> String {
@@ -74,7 +70,7 @@ impl SearchQuery {
             Ok(contents)
         } else {
             println!("cache not found");
-            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "File not found."))
+            Err(std::io::Error::new(std::io::ErrorKind::Other, "An unexpected error occurred."))
         }
     }
 }
