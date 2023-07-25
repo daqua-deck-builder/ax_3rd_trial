@@ -11,23 +11,36 @@ use std::io::prelude::*;
 struct SearchQuery {
     search: String,
     keyword: String,
-    product_type: String,
+    product_type: ProductType,
     product_no: String,
     card_page: String,
     card_kind: String,
     rarelity: String,
 }
 
+#[derive(Clone)]
+enum ProductType {
+    Booster,
+    Starter,
+}
+
 impl SearchQuery {
-    fn new(product_no: String, card_page: i32) -> SearchQuery {
+    fn new(product_no: String, product_type: ProductType, card_page: i32) -> SearchQuery {
         SearchQuery {
             search: "".into(),
             keyword: "".into(),
-            product_type: "booster".into(),
-            product_no: product_no.clone(),
+            product_type,
+            product_no,
             card_page: card_page.to_string(),
             card_kind: "".into(),
             rarelity: "".into(),
+        }
+    }
+
+    fn get_product_type(&self) -> String {
+        match &self.product_type {
+            ProductType::Booster => "booster".into(),
+            _ => "starter".into(),
         }
     }
 
@@ -36,7 +49,7 @@ impl SearchQuery {
         for (key, value) in vec![
             ("search", &self.search),
             ("keyword", &self.keyword),
-            ("product_type", &self.product_type),
+            ("product_type", &self.get_product_type()),
             ("product_no", &self.product_no),
             ("card_page", &self.card_page),
             ("card_kind", &self.card_kind),
@@ -48,7 +61,7 @@ impl SearchQuery {
     }
 
     fn to_filename(&self) -> String {
-        format!("{}/{}_p{}.html", &self.product_type, &self.product_no, &self.card_page)
+        format!("{}/{}_p{}.html", &self.get_product_type(), &self.product_no, &self.card_page)
     }
 
     fn cache_check(&self, dir: String) -> Result<String, std::io::Error> {
@@ -85,12 +98,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 pub async fn simple_request() -> Result<(), reqwest::Error> {
     let url = "https://www.takaratomy.co.jp/products/wixoss/card/card_list.php";
 
-    let search_query: SearchQuery = SearchQuery::new(String::from("WXi-14"), 1);
+    let search_query: SearchQuery = SearchQuery::new(String::from("WXi-14"), ProductType::Booster, 1);
 
     match search_query.cache_check("./text_cache".to_string()) {
         Ok(content) => {
             println!("{}", content);
-        },
+        }
         _ => {
             let form: HashMap<String, String> = search_query.into_hashmap();
 
