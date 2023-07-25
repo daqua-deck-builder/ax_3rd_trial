@@ -16,6 +16,8 @@ tower-http = { version = "0.4.1", features = ["util"] }
 axum-extra = { version = "0.7.4", features = ["cookie"] }
 rand = "0.8.5"
 uuid = { version = "1.4.0", features = ["v4"] }
-sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls", "postgres" ] }
+sqlx = { version = "0.7", features = ["runtime-tokio", "tls-rustls", "postgres"] }
 hyper = "0.14.27"
 bcrypt = "0.15.0"
+reqwest = { version = "0.11.18", features = ["cookies", "multipart"] }
+scraper = "0.17.1"
