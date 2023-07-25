@@ -1,7 +1,5 @@
 use std::collections::HashMap;
-use reqwest::{
-    Client,
-};
+use reqwest::{Client, Response};
 use serde;
 use scraper::{Html, Selector};
 use std::fs;
@@ -67,27 +65,26 @@ async fn main() {
 pub async fn simple_request() -> Result<(), reqwest::Error> {
     let url = "https://www.takaratomy.co.jp/products/wixoss/card/card_list.php";
 
-    let search_query = SearchQuery::new(String::from("WXi-14"), 1);
-    let form = search_query.clone().into_hashmap();
+    let search_query: SearchQuery = SearchQuery::new(String::from("WXi-14"), 1);
+    let form: HashMap<&str, String> = search_query.clone().into_hashmap();
 
     let client: Client = Client::new();
-    let res = client.post(url)
+    let res: Response = client.post(url)
         .header(reqwest::header::COOKIE, "wixAge=conf;")
         .form(&form)
         .send().await?;
 
-    let body = res.text().await.unwrap();
+    let body: String = res.text().await.unwrap();
 
-    let cache_filename = std::path::PathBuf::from(format!("./text_cache/{}", search_query.clone().to_filename()));
+    let cache_filename: PathBuf = std::path::PathBuf::from(format!("./text_cache/{}", search_query.clone().to_filename()));
 
     if let Some(parent_path) = cache_filename.parent() {
         try_mkdir(&parent_path).unwrap();
 
-        let document = Html::parse_document(&body);
-        let main_selector = Selector::parse("#dipThum").unwrap();
+        let document: Html = Html::parse_document(&body);
+        let main_selector: Selector = Selector::parse("#dipThum").unwrap();
 
-
-        let file = File::create(&cache_filename);
+        let file: Result<File, E> = File::create(&cache_filename);
         if let Ok(mut file_) = file {
             for element in document.select(&main_selector) {
                 println!("{}", element.inner_html());
