@@ -9,37 +9,41 @@ use std::io::prelude::*;
 
 #[derive(Clone)]
 struct SearchQuery {
-    search: &'static str,
-    keyword: &'static str,
-    product_type: &'static str,
+    search: String,
+    keyword: String,
+    product_type: String,
     product_no: String,
     card_page: String,
-    card_kind: &'static str,
-    rarelity: &'static str,
+    card_kind: String,
+    rarelity: String,
 }
 
 impl SearchQuery {
     fn new(product_no: String, card_page: i32) -> SearchQuery {
         SearchQuery {
-            search: "",
-            keyword: "",
-            product_type: "booster",
+            search: "".into(),
+            keyword: "".into(),
+            product_type: "booster".into(),
             product_no: product_no.clone(),
             card_page: card_page.to_string(),
-            card_kind: "",
-            rarelity: "",
+            card_kind: "".into(),
+            rarelity: "".into(),
         }
     }
 
-    fn into_hashmap<'a>(self) -> HashMap<&'a str, String> {
+    fn into_hashmap(&self) -> HashMap<String, String> {
         let mut form = HashMap::new();
-        form.insert("search", self.search.to_string());
-        form.insert("keyword", self.keyword.to_string());
-        form.insert("product_type", self.product_type.to_string());
-        form.insert("product_no", self.product_no.to_string());
-        form.insert("card_page", self.card_page);
-        form.insert("card_kind", self.card_kind.to_string());
-        form.insert("rarelity", self.rarelity.to_string());
+        for (key, value) in vec![
+            ("search", &self.search),
+            ("keyword", &self.keyword),
+            ("product_type", &self.product_type),
+            ("product_no", &self.product_no),
+            ("card_page", &self.card_page),
+            ("card_kind", &self.card_kind),
+            ("rarelity", &self.rarelity),
+        ] {
+            form.insert(key.to_string(), value.clone());
+        }
         form
     }
 
@@ -57,16 +61,18 @@ fn try_mkdir(rel_path: &Path) -> Result<(), std::io::Error> {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     try_mkdir(Path::new("./text_cache")).unwrap();
     simple_request().await.unwrap();
+
+    Ok(())
 }
 
 pub async fn simple_request() -> Result<(), reqwest::Error> {
     let url = "https://www.takaratomy.co.jp/products/wixoss/card/card_list.php";
 
     let search_query: SearchQuery = SearchQuery::new(String::from("WXi-14"), 1);
-    let form: HashMap<&str, String> = search_query.clone().into_hashmap();
+    let form: HashMap<String, String> = search_query.clone().into_hashmap();
 
     let client: Client = Client::new();
     let res: Response = client.post(url)
@@ -84,7 +90,7 @@ pub async fn simple_request() -> Result<(), reqwest::Error> {
         let document: Html = Html::parse_document(&body);
         let main_selector: Selector = Selector::parse("#dipThum").unwrap();
 
-        let file: Result<File, E> = File::create(&cache_filename);
+        let file: Result<File, std::io::Error> = File::create(&cache_filename);
         if let Ok(mut file_) = file {
             for element in document.select(&main_selector) {
                 println!("{}", element.inner_html());
