@@ -47,8 +47,22 @@ impl SearchQuery {
         form
     }
 
-    fn to_filename(self) -> String {
-        format!("{}/{}_p{}.html", self.product_type, self.product_no, self.card_page)
+    fn to_filename(&self) -> String {
+        format!("{}/{}_p{}.html", &self.product_type, &self.product_no, &self.card_page)
+    }
+
+    fn cache_check(&self, dir: String) -> Result<String, std::io::Error> {
+        let path: PathBuf = PathBuf::from(format!("{}/{}", dir, &self.to_filename()));
+        if path.exists() {
+            println!("cache found");
+            let mut file: File = File::open(&path)?;
+            let mut contents = String::new();
+            file.read_to_string(&mut contents)?;
+            Ok(contents)
+        } else {
+            println!("cache not found");
+            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "File not found."))
+        }
     }
 }
 
@@ -72,29 +86,37 @@ pub async fn simple_request() -> Result<(), reqwest::Error> {
     let url = "https://www.takaratomy.co.jp/products/wixoss/card/card_list.php";
 
     let search_query: SearchQuery = SearchQuery::new(String::from("WXi-14"), 1);
-    let form: HashMap<String, String> = search_query.clone().into_hashmap();
 
-    let client: Client = Client::new();
-    let res: Response = client.post(url)
-        .header(reqwest::header::COOKIE, "wixAge=conf;")
-        .form(&form)
-        .send().await?;
+    match search_query.cache_check("./text_cache".to_string()) {
+        Ok(content) => {
+            println!("{}", content);
+        },
+        _ => {
+            let form: HashMap<String, String> = search_query.into_hashmap();
 
-    let body: String = res.text().await.unwrap();
+            let client: Client = Client::new();
+            let res: Response = client.post(url)
+                .header(reqwest::header::COOKIE, "wixAge=conf;")
+                .form(&form)
+                .send().await?;
 
-    let cache_filename: PathBuf = std::path::PathBuf::from(format!("./text_cache/{}", search_query.clone().to_filename()));
+            let body: String = res.text().await.unwrap();
 
-    if let Some(parent_path) = cache_filename.parent() {
-        try_mkdir(&parent_path).unwrap();
+            let cache_filename: PathBuf = PathBuf::from(format!("./text_cache/{}", &search_query.to_filename()));
 
-        let document: Html = Html::parse_document(&body);
-        let main_selector: Selector = Selector::parse("#dipThum").unwrap();
+            if let Some(parent_path) = cache_filename.parent() {
+                try_mkdir(&parent_path).unwrap();
 
-        let file: Result<File, std::io::Error> = File::create(&cache_filename);
-        if let Ok(mut file_) = file {
-            for element in document.select(&main_selector) {
-                println!("{}", element.inner_html());
-                file_.write_all(element.inner_html().as_bytes()).unwrap();
+                let document: Html = Html::parse_document(&body);
+                let main_selector: Selector = Selector::parse("#dipThum").unwrap();
+
+                let file: Result<File, std::io::Error> = File::create(&cache_filename);
+                if let Ok(mut file_) = file {
+                    for element in document.select(&main_selector) {
+                        println!("{}", element.inner_html());
+                        file_.write_all(element.inner_html().as_bytes()).unwrap();
+                    }
+                }
             }
         }
     }
