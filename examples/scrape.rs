@@ -44,7 +44,7 @@ impl SearchQuery {
         }
     }
 
-    fn into_hashmap(&self) -> HashMap<String, String> {
+    fn to_hashmap(&self) -> HashMap<String, String> {
         HashMap::from_iter(vec![
             ("search".into(), self.search.clone()),
             ("keyword".into(), self.keyword.clone()),
@@ -101,7 +101,7 @@ pub async fn simple_request() -> Result<(), reqwest::Error> {
             println!("{}", content);
         }
         _ => {
-            let form: HashMap<String, String> = search_query.into_hashmap();
+            let form: HashMap<String, String> = search_query.to_hashmap();
 
             let client: Client = Client::new();
             let res: Response = client.post(url)
