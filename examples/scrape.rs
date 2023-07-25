@@ -77,7 +77,7 @@ impl SearchQuery {
 
 fn try_mkdir(rel_path: &Path) -> Result<(), std::io::Error> {
     if !rel_path.exists() {
-        fs::create_dir(rel_path)?;
+        fs::create_dir_all(rel_path)?;
     }
 
     Ok(())
