@@ -21,3 +21,4 @@ hyper = "0.14.27"
 bcrypt = "0.15.0"
 reqwest = { version = "0.11.18", features = ["cookies", "multipart"] }
 scraper = "0.17.1"
+async-recursion = "1.0.4"
