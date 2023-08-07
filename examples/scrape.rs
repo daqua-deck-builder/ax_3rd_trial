@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use reqwest::{Client, Response};
 use scraper::{Html, Selector};
-use std::fs;
+use std::{fs};
 use std::path::{Path, PathBuf};
-use std::fs::File;
+use std::fs::{File, ReadDir};
 use std::io::prelude::*;
 use async_recursion::async_recursion;
 
@@ -27,7 +27,7 @@ pub enum ProductType {
 
 impl ProductType {
     fn get_path_relative(&self) -> String {
-         match self {
+        match self {
             ProductType::Booster(product_no) => format!("booster/{}", product_no),
             ProductType::Starter(product_no) => format!("starter/{}", product_no),
             ProductType::PromotionCard => String::from("promotion"),
@@ -109,16 +109,24 @@ fn try_mkdir(rel_path: &Path) -> Result<(), std::io::Error> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     try_mkdir(Path::new("./text_cache")).unwrap();
 
-    let product_type = ProductType::Starter(String::from("WDA-F03"));
-    // let product_type = ProductType::Booster(String::from("WXi-12"));
+    // let product_type = ProductType::Starter(String::from("WDA-F03"));
+    let product_type = ProductType::Booster(String::from("WXi-12"));
 
-    simple_request(&product_type, 1).await.unwrap();
+    // cache_product_index(&product_type, 1).await.unwrap();
+
+    let links = collect_card_detail_links(&product_type).await;
+
+    if let Ok(links) = links {
+        links.into_iter().for_each(|link| {
+            println!("{}", link);
+        });
+    }
 
     Ok(())
 }
 
 #[async_recursion]
-pub async fn simple_request(product_type: &ProductType, card_page: i32) -> Result<(), reqwest::Error> {
+pub async fn cache_product_index(product_type: &ProductType, card_page: i32) -> Result<(), reqwest::Error> {
     let p_no = product_type.get_path_relative();
     println!("{} {}", p_no, card_page);
 
@@ -169,7 +177,7 @@ pub async fn simple_request(product_type: &ProductType, card_page: i32) -> Resul
             let pages = (count / 21) + 1;
 
             if card_page < pages {
-                simple_request(&product_type, card_page + 1).await.unwrap();
+                cache_product_index(&product_type, card_page + 1).await.unwrap();
             }
         }
     } else {
@@ -191,6 +199,40 @@ fn find_one(content: &String, selector: String) -> Option<String> {
     }
 }
 
+async fn collect_card_detail_links(product_type: &ProductType) -> Result<Vec<String>, ()> {
+    let product_root: String = product_type.get_path_relative();
+    let path_s: String = format!("./text_cache/{}", product_root);
+    let product_dir: &Path = Path::new(&path_s);
+
+    println!("{}", product_dir.display());
+
+    let files_result: std::io::Result<ReadDir> = fs::read_dir(product_dir);
+
+    match files_result {
+        Ok(files) => {
+            let all_text: String = files.into_iter().map(|f| {
+                let p: fs::DirEntry = f.unwrap();
+                let file_path: PathBuf = p.path();
+                let content: String = fs::read_to_string(&file_path).unwrap();
+
+                content
+            }).collect::<Vec<_>>().join("");
+
+            let parsed_html: Html = Html::parse_document(&all_text);
+            let selector: Selector = Selector::parse("a.c-box").unwrap();
+            let links: Vec<String> = parsed_html.select(&selector).into_iter().map(|element| {
+                element.value().attr("href")
+                    .unwrap_or("").to_owned()
+            }).filter(|href| !href.is_empty()).collect();
+            Ok(links)
+        }
+        Err(err) => {
+            println!("{:?}", err);
+            Err(())
+        }
+    }
+}
+
 #[allow(dead_code)]
 fn find_many(content: &String, selector: String) -> Vec<String> {
     let document: Html = Html::parse_document(&content);
@@ -201,6 +243,7 @@ fn find_many(content: &String, selector: String) -> Vec<String> {
     }
     result
 }
+
 
 fn extract_number(s: &String) -> Option<i32> {
     let digits: String = s.chars().filter(|c| c.is_digit(10)).collect();
