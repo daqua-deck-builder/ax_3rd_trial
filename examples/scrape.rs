@@ -13,25 +13,37 @@ struct SearchQuery {
     search: String,
     keyword: String,
     product_type: ProductType,
-    product_no: String,
     card_page: String,
     card_kind: String,
     rarelity: String,
 }
 
 #[derive(Clone)]
-enum ProductType {
-    Booster,
-    Starter,
+pub enum ProductType {
+    Booster(String),
+    Starter(String),
+    PromotionCard,
+    SpecialCard,
+}
+
+impl ProductType {
+    fn get_path_relative(&self) -> String {
+         match self {
+            ProductType::Booster(product_no) => format!("booster/{}", product_no),
+            ProductType::Starter(product_no) => format!("starter/{}", product_no),
+            ProductType::PromotionCard => String::from("promotion"),
+            ProductType::SpecialCard => String::from("special"),
+            _ => "unknown".into(),
+        }
+    }
 }
 
 impl SearchQuery {
-    fn new(product_no: &String, product_type: ProductType, card_page: i32) -> SearchQuery {
+    fn new(product_type: &ProductType, card_page: i32) -> SearchQuery {
         SearchQuery {
             search: "".into(),
             keyword: "".into(),
-            product_type,
-            product_no: product_no.clone(),
+            product_type: product_type.clone(),
             card_page: card_page.to_string(),
             card_kind: "".into(),
             rarelity: "".into(),
@@ -40,17 +52,39 @@ impl SearchQuery {
 
     fn get_product_type(&self) -> String {
         match &self.product_type {
-            ProductType::Booster => "booster".into(),
-            _ => "starter".into(),
+            ProductType::Booster(product_no) => "booster".into(),
+            ProductType::Starter(product_no) => "starter".into(),
+            ProductType::PromotionCard => "-".into(),
+            ProductType::SpecialCard => "-".into(),
+            _ => "unknown".into(),
+        }
+    }
+
+    fn get_cache_path_relative(&self) -> String {
+        match &self.product_type {
+            ProductType::Booster(product_no) => format!("booster/{}", product_no),
+            ProductType::Starter(product_no) => format!("starter/{}", product_no),
+            ProductType::PromotionCard => String::from("promotion"),
+            ProductType::SpecialCard => String::from("special"),
+            _ => "unknown".into(),
         }
     }
 
     fn to_hashmap(&self) -> HashMap<String, String> {
+        let empty_product_no = String::from("");
+
+        let product_no = match &self.product_type {
+            ProductType::Booster(product_no) => product_no,
+            ProductType::Starter(product_no) => product_no,
+            ProductType::PromotionCard => &empty_product_no,
+            ProductType::SpecialCard => &empty_product_no,
+        };
+
         HashMap::from_iter(vec![
             ("search".into(), self.search.clone()),
             ("keyword".into(), self.keyword.clone()),
             ("product_type".into(), self.get_product_type()),
-            ("product_no".into(), self.product_no.clone()),
+            ("product_no".into(), product_no.clone()),
             ("card_page".into(), self.card_page.clone()),
             ("card_kind".into(), self.card_kind.clone()),
             ("rarelity".into(), self.rarelity.clone()),
@@ -58,7 +92,7 @@ impl SearchQuery {
     }
 
     fn to_filename(&self) -> String {
-        format!("{}/{}_p{}.html", &self.get_product_type(), &self.product_no, &self.card_page)
+        format!("{}/p{}.html", &self.product_type.get_path_relative(), &self.card_page)
     }
 
     fn cache_check(&self, dir: String) -> Result<String, std::io::Error> {
@@ -87,18 +121,24 @@ fn try_mkdir(rel_path: &Path) -> Result<(), std::io::Error> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     try_mkdir(Path::new("./text_cache")).unwrap();
-    simple_request(&String::from("WXi-14"), 1).await.unwrap();
+
+    let product_type = ProductType::Starter(String::from("WDA-F03"));
+    // let product_type = ProductType::Booster(String::from("WXi-12"));
+
+    simple_request(&product_type, 1).await.unwrap();
 
     Ok(())
 }
 
 #[async_recursion]
-pub async fn simple_request(product_no: &String, card_page: i32) -> Result<(), reqwest::Error> {
-    println!("{} {}", product_no, card_page);
+pub async fn simple_request(product_type: &ProductType, card_page: i32) -> Result<(), reqwest::Error> {
+    let p_no = product_type.get_path_relative();
+    println!("{} {}", p_no, card_page);
+
 
     let url = "https://www.takaratomy.co.jp/products/wixoss/card/card_list.php";
 
-    let search_query: SearchQuery = SearchQuery::new(&product_no, ProductType::Booster, card_page);
+    let search_query: SearchQuery = SearchQuery::new(&product_type, card_page);
 
     let main: Option<String> = match search_query.cache_check("./text_cache".to_string()) {
         Ok(content_) => {
@@ -142,7 +182,7 @@ pub async fn simple_request(product_no: &String, card_page: i32) -> Result<(), r
             let pages = (count / 21) + 1;
 
             if card_page < pages {
-                simple_request(&product_no, card_page + 1).await.unwrap();
+                simple_request(&product_type, card_page + 1).await.unwrap();
             }
         }
     } else {
