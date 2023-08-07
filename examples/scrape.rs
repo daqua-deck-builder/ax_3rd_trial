@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use reqwest::{Client, Response};
-use serde;
 use scraper::{Html, Selector};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -33,7 +32,6 @@ impl ProductType {
             ProductType::Starter(product_no) => format!("starter/{}", product_no),
             ProductType::PromotionCard => String::from("promotion"),
             ProductType::SpecialCard => String::from("special"),
-            _ => "unknown".into(),
         }
     }
 }
@@ -52,21 +50,10 @@ impl SearchQuery {
 
     fn get_product_type(&self) -> String {
         match &self.product_type {
-            ProductType::Booster(product_no) => "booster".into(),
-            ProductType::Starter(product_no) => "starter".into(),
+            ProductType::Booster(_product_no) => "booster".into(),
+            ProductType::Starter(_product_no) => "starter".into(),
             ProductType::PromotionCard => "-".into(),
             ProductType::SpecialCard => "-".into(),
-            _ => "unknown".into(),
-        }
-    }
-
-    fn get_cache_path_relative(&self) -> String {
-        match &self.product_type {
-            ProductType::Booster(product_no) => format!("booster/{}", product_no),
-            ProductType::Starter(product_no) => format!("starter/{}", product_no),
-            ProductType::PromotionCard => String::from("promotion"),
-            ProductType::SpecialCard => String::from("special"),
-            _ => "unknown".into(),
         }
     }
 
@@ -204,6 +191,7 @@ fn find_one(content: &String, selector: String) -> Option<String> {
     }
 }
 
+#[allow(dead_code)]
 fn find_many(content: &String, selector: String) -> Vec<String> {
     let document: Html = Html::parse_document(&content);
     let main_selector: Selector = Selector::parse(selector.as_str()).unwrap();
